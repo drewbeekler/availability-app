@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Availability Calendar</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Availability">
+<meta name="mobile-web-app-capable" content="yes">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+    padding-top: max(40px, env(safe-area-inset-top));
+    padding-bottom: max(40px, env(safe-area-inset-bottom));
+  }
+
+  .container {
+    width: 100%;
+    max-width: 680px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 24px;
+    text-align: center;
+    letter-spacing: -0.3px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+  }
+
+  /* Month Nav */
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .month-nav button {
+    background: #f0f2f5;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    cursor: pointer;
+    color: #555;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .month-nav button:hover { background: #e2e6ea; }
+
+  .month-label {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  /* Calendar Grid */
+  .calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .day-header {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #999;
+    padding: 4px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: #1a1a2e;
+    background: #f8f9fb;
+    border: 2px solid transparent;
+    user-select: none;
+  }
+
+  .day:hover { background: #eef0f3; }
+
+  .day.unavailable {
+    background: #ffe5e5;
+    color: #c0392b;
+    border-color: #f5c6c6;
+    text-decoration: line-through;
+  }
+
+  .day.unavailable:hover { background: #ffd5d5; }
+
+  .day.empty {
+    background: transparent;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .day.today {
+    border-color: #4a90d9;
+    background: #eef5fd;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 16px;
+    justify-content: center;
+    font-size: 13px;
+    color: #777;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+  }
+
+  .legend-dot.avail { background: #f8f9fb; border: 2px solid #ddd; }
+  .legend-dot.unavail { background: #ffe5e5; border: 2px solid #f5c6c6; }
+
+  /* Output */
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .output-header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  .btn-copy {
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-copy:hover { background: #2d2d4e; }
+  .btn-copy.copied { background: #27ae60; }
+
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    border: 1.5px solid #e8eaed;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #1a1a2e;
+    resize: vertical;
+    line-height: 1.7;
+    background: #fafbfc;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus { border-color: #4a90d9; }
+
+  .empty-state {
+    text-align: center;
+    color: #aaa;
+    font-size: 14px;
+    padding: 16px 0;
+    font-style: italic;
+  }
+
+  .count-badge {
+    font-size: 12px;
+    color: #888;
+    margin-top: 8px;
+    text-align: right;
+  }
+
+  .footer-note {
+    text-align: center;
+    font-size: 11px;
+    color: #b3b6bd;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📅 Availability Planner</h1>
+
+  <div class="card">
+    <div class="month-nav">
+      <button id="prevBtn" onclick="changeMonth(-1)">&#8249;</button>
+      <span class="month-label" id="monthLabel"></span>
+      <button id="nextBtn" onclick="changeMonth(1)">&#8250;</button>
+    </div>
+
+    <div class="calendar" id="calendar"></div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot avail"></div>
+        <span>Available (click to mark off)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot unavail"></div>
+        <span>Unavailable</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="output-header">
+      <h2>Available Dates</h2>
+      <button class="btn-copy" id="copyBtn" onclick="copyDates()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copy
+      </button>
+    </div>
+    <div id="outputArea"></div>
+  </div>
+
+  <div class="footer-note">Saved automatically on this device</div>
+</div>
+
+<script>
+  // ---- Persistence ----
+  const STORAGE_KEY = 'availability-unavailable-v1';
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(unavailable));
+    } catch (e) {
+      // storage unavailable (private browsing etc.) — fail silently
+    }
+  }
+
+  // State — unavailable days stored as "YYYY-M-D" keys
+  const unavailable = loadState();
+
+  const MONTHS = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"];
+  const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const DAY_HEADERS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const today = new Date();
+
+  // Always start on next month relative to today
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  let currentYear = nextMonth.getFullYear();
+  let currentMonth = nextMonth.getMonth();
+
+  function key(year, month, day) {
+    return `${year}-${month}-${day}`;
+  }
+
+  function toggleDay(year, month, day) {
+    const k = key(year, month, day);
+    if (unavailable[k]) {
+      delete unavailable[k];
+    } else {
+      unavailable[k] = true;
+    }
+    saveState();
+    render();
+  }
+
+  function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
+    render();
+  }
+
+  function render() {
+    renderCalendar();
+    renderOutput();
+  }
+
+  function renderCalendar() {
+    document.getElementById('monthLabel').textContent =
+      `${MONTHS[currentMonth]} ${currentYear}`;
+
+    const cal = document.getElementById('calendar');
+    cal.innerHTML = '';
+
+    // Day headers
+    DAY_HEADERS.forEach(d => {
+      const h = document.createElement('div');
+      h.className = 'day-header';
+      h.textContent = d;
+      cal.appendChild(h);
+    });
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'day empty';
+      cal.appendChild(empty);
+    }
+
+    // Day cells
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cell = document.createElement('div');
+      const k = key(currentYear, currentMonth, d);
+      const isUnavail = !!unavailable[k];
+      const isToday = (d === today.getDate() &&
+                       currentMonth === today.getMonth() &&
+                       currentYear === today.getFullYear());
+
+      cell.className = 'day' +
+        (isUnavail ? ' unavailable' : '') +
+        (isToday ? ' today' : '');
+      cell.textContent = d;
+      cell.onclick = () => toggleDay(currentYear, currentMonth, d);
+      cal.appendChild(cell);
+    }
+  }
+
+  function renderOutput() {
+    const outputArea = document.getElementById('outputArea');
+
+    // Build sorted list of available days for current month
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const lines = [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const k = key(currentYear, currentMonth, d);
+      if (!unavailable[k]) {
+        const date = new Date(currentYear, currentMonth, d);
+        const dayName = DAYS[date.getDay()];
+        const monthName = MONTHS[currentMonth];
+        lines.push(`${dayName} ${monthName} ${d} Available.`);
+      }
+    }
+
+    if (lines.length === 0) {
+      outputArea.innerHTML = '<div class="empty-state">No available dates this month.</div>';
+    } else {
+      const ta = document.createElement('textarea');
+      ta.readOnly = true;
+      ta.value = lines.join('\n');
+      outputArea.innerHTML = '';
+      outputArea.appendChild(ta);
+
+      const badge = document.createElement('div');
+      badge.className = 'count-badge';
+      badge.textContent = `${lines.length} available day${lines.length !== 1 ? 's' : ''} this month`;
+      outputArea.appendChild(badge);
+    }
+  }
+
+  function copyDates() {
+    const ta = document.querySelector('#outputArea textarea');
+    if (!ta) return;
+
+    navigator.clipboard.writeText(ta.value).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy`;
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  // Init
+  render();
+
+  // Register service worker for offline/installable support
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
