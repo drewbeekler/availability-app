@@ -233,6 +233,25 @@
     color: #b3b6bd;
     margin-top: 4px;
   }
+
+  .btn-clear-all {
+    display: block;
+    margin: 16px auto 0;
+    background: transparent;
+    color: #c0392b;
+    border: 1.5px solid #f5c6c6;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .btn-clear-all:hover {
+    background: #ffe5e5;
+    border-color: #e8a5a5;
+  }
 </style>
 </head>
 <body>
@@ -271,6 +290,8 @@
     </div>
     <div id="outputArea"></div>
   </div>
+
+  <button class="btn-clear-all" id="clearAllBtn" onclick="clearAllDates()">Clear all marked dates</button>
 
   <div class="footer-note">Saved automatically on this device</div>
 </div>
@@ -322,6 +343,16 @@
     } else {
       unavailable[k] = true;
     }
+    saveState();
+    render();
+  }
+
+  function clearAllDates() {
+    const count = Object.keys(unavailable).length;
+    if (count === 0) return;
+    const ok = confirm(`Clear all ${count} marked unavailable date${count !== 1 ? 's' : ''}? This can't be undone.`);
+    if (!ok) return;
+    Object.keys(unavailable).forEach(k => delete unavailable[k]);
     saveState();
     render();
   }
